@@ -12,4 +12,4 @@ A **literate-programming** Emacs configuration that transforms your editor into 
 1. Clone this repo to your config directory:
 
 ```bash
-git clone https://github.com/yourusername/emacs-config.git ~/.config/emacs
+git clone https://github.com/amirmtaati/emacs.git ~/.config/emacs
