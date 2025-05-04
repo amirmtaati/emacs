@@ -1,0 +1,568 @@
+#+TITLE: Amir M. Taati's Emacs Configuration
+#+AUTHOR: Amir Mohammad Taati
+
+* Introduction
+This is my literate programming style GNU Emacs configuration file.
+
+* Packages
+Many extra features can be added to Emacs by amazing packages. Here, all the resources for fetching commuinty packages is set up.
+Mainly being =MELPA=. Furthermore, =use-package= is being used to download and configure packages rather than the default
+package manager.
+
+#+begin_src emacs-lisp
+
+ (require 'package)
+
+ (setq package-archives '(("melpa" . "https://melpa.org/packages/")  
+                          ("org" . "https://orgmode.org/elpa/")
+                          ("gnu" . "https://elpa.gnu.org/packages/")
+                          ("elpa" . "https://elpa.gnu.org/packages/")
+                          ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+
+ (package-initialize)
+ (unless package-archive-contents
+   (package-refresh-contents))
+
+ (unless (package-installed-p 'use-package)
+   (package-install 'use-package))
+
+ (require 'use-package)
+ (setq use-package-always-ensure t)
+
+#+end_src
+
+* User Interface
+The default UI is a bit annoying and unproductive. Here are some configurations around fonts, themes, modeline and etc.
+
+** Basic Settings
+When you first open up Emacs, you are faced with so many different distracting graphical details like menu bar and etc. Here
+I get rid of all of them.
+
+#+begin_src emacs-lisp
+
+ (setq inhibit-startup-message t) 
+
+ (when (display-graphic-p)
+	(global-hl-line-mode))
+	(column-number-mode)
+	(global-display-line-numbers-mode t)
+
+ (dolist (mode '(org-mode-hook
+		  term-mode-hook
+		  shell-mode-hook
+		  treemacs-mode-hook
+		  org-agenda-mode-hook
+		  vterm-mode-hook
+		  eshell-mode-hook))
+
+ (add-hook mode (lambda () (display-line-numbers-mode 0))))
+
+ (setq make-backup-files nil)
+ (setq debug-on-error t)
+ (setq visible-bell 1)
+ (setq electric-pair-preserve-balance nil)
+ (setq tab-width 4)
+ (setq frame-inhibit-implied-resize t)
+ (scroll-bar-mode -1)              
+ (tool-bar-mode   -1)             
+ (tooltip-mode    -1)            
+ (menu-bar-mode   -1)           
+ (electric-pair-mode 1)
+ (set-fringe-mode 20)
+
+#+end_src
+
+** Transparency
+
+#+begin_src emacs-lisp
+
+  (defvar amt/frame-transparency '(90 . 90))
+  (set-frame-parameter (selected-frame) 'alpha amt/frame-transparency)
+  (add-to-list 'default-frame-alist `(alpha . ,amt/frame-transparency))
+  (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
+  (add-to-list 'default-frame-alist '(fullscreen . maximized))
+
+#+end_src
+
+** Fonts
+
+#+begin_src emacs-lisp
+  (defvar amt/font-family "Fira Code")
+  (defvar amt/font-size 160)
+
+  (set-face-attribute 'default nil
+    :family amt/font-family
+    :height amt/font-size)
+
+  (set-face-attribute 'fixed-pitch nil
+    :family amt/font-family 
+    :height amt/font-size)
+
+  (set-face-attribute 'variable-pitch nil
+    :family amt/font-family 
+    :height amt/font-size)
+
+
+ (use-package default-text-scale
+   :bind
+   (("C-)" . default-text-scale-reset)
+    ("C-=" . default-text-scale-increase)
+    ("C--" . default-text-scale-decrease)))
+
+#+end_src
+
+** Dashboard
+
+#+begin_src emacs-lisp
+
+ (use-package dashboard
+   :config
+    (setq 
+    dashboard-banner-logo-title nil
+    dashboard-center-content t
+    dashboard-set-footer nil
+    dashboard-page-separator "\n\n\n"
+    dashboard-items '((recents  . 5)))
+     (dashboard-setup-startup-hook))
+
+#+end_src
+
+** Ivy
+
+#+begin_src emacs-lisp
+
+ (use-package ivy
+   :diminish
+   :bind (("C-s" . swiper)
+   :map ivy-minibuffer-map
+      ("TAB" . ivy-alt-done)
+      ("C-l" . ivy-alt-done)
+      ("C-j" . ivy-next-line)
+      ("C-k" . ivy-previous-line)
+   :map ivy-switch-buffer-map
+      ("C-k" . ivy-previous-line)
+      ("C-l" . ivy-done)
+      ("C-d" . ivy-switch-buffer-kill)
+   :map ivy-reverse-i-search-map
+      ("C-k" . ivy-previous-line)
+      ("C-d" . ivy-reverse-i-search-kill))
+   :config
+      (ivy-mode 1))
+
+ (use-package ivy-rich
+   :after ivy
+   :init
+   (ivy-rich-mode 1))
+
+; (use-package ivy-prescient
+;   :custom
+;   (ivy-prescient-enable-filtering nil)
+;   :config
+;     (prescient-persist-mode 1)
+;     (ivy-prescient-mode 1))
+
+#+end_src
+
+** Counsel
+
+#+begin_src emacs-lisp
+
+ (use-package counsel
+   :custom
+   (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
+   :bind
+     ("M-x" . 'counsel-M-x)
+     ("C-x b" . 'counsel-switch-buffer)
+     ("C-x C-f" . 'counsel-find-file)
+     ("C-s" . 'swiper))
+ ;  :config
+  ;   (use-package flx)
+   ;  (ivy-mode 1)
+    ; (setq ivy-use-virtual-buffers t)
+     ;(setq ivy-count-format "(%d/%d) ")
+    ; (setq ivy-initial-inputs-alist nil)
+    ; (setq ivy-re-builders-alist
+;	    '((swiper . ivy--regex-plus)
+;	      (t . ivy--regex-fuzzy)))
+
+#+end_src
+
+** Theme
+#+begin_src emacs-lisp
+(setq modus-themes-mode-line '(accented borderless)
+      modus-themes-bold-constructs t
+      modus-themes-italic-constructs t
+      modus-themes-fringes 'subtle
+      modus-themes-tabs-accented t
+      modus-themes-paren-match '(bold intense)
+      modus-themes-prompts '(bold intense)
+      modus-themes-completions 'opinionated
+      modus-themes-org-blocks 'tinted-background
+      modus-themes-scale-headings t
+      modus-themes-region '(bg-only)
+      modus-themes-headings
+      '((1 . (rainbow overline background 1.4))
+        (2 . (rainbow background 1.3))
+        (3 . (rainbow bold 1.2))
+        (t . (semilight 1.1))))
+
+;; Load the dark theme by default
+(load-theme 'modus-vivendi t)
+#+end_src
+
+  #+begin_src emacs-lisp
+
+  ; (defvar amt/theme 'doom-dark+)
+
+  ; (use-package doom-themes
+  ;   :ensure t
+  ;   :config
+  ;   (setq doom-themes-enable-bold t)
+  ;   (setq doom-themes-enable-italic t) 
+  ;   (load-theme amt/theme t)
+  ;   (doom-themes-visual-bell-config)
+  ;   (doom-themes-neotree-config)
+  ;   (doom-themes-treemacs-config)
+  ;   (doom-themes-org-config))
+
+#+end_src
+** Modeline
+#+begin_src emacs-lisp
+
+ (use-package doom-modeline
+   :ensure t
+   :hook (after-init . doom-modeline-mode))
+
+#+end_src
+** Keybindings
+
+#+begin_src emacs-lisp
+
+ (global-set-key (kbd "<f1>") 'vterm)
+
+ (use-package evil
+   :ensure t
+   :init
+   (setq evil-want-keybinding nil)
+   :config
+   (evil-mode 1))
+
+ (use-package evil-collection
+   :after evil
+   :ensure t
+   :config
+   (evil-collection-init))
+
+ (use-package evil-surround
+   :after evil
+   :config
+   (global-evil-surround-mode 1))
+
+ (use-package evil-org
+   :after (evil org)
+   :demand t
+   :config
+   (require 'evil-org-agenda)
+   (evil-org-agenda-set-keys))
+
+#+end_src
+
+* Org Mode
+** Basic Settings
+
+#+begin_src emacs-lisp
+
+   (use-package org
+     :pin org
+  ;   :commands (org-capture org-agenda)
+     :config
+    (setq-default org-startup-indented t
+		  org-pretty-entities t
+		  org-use-sub-superscripts "{}"
+		  org-hide-emphasis-markers t
+		  org-startup-with-inline-images t
+		  org-image-actual-width '(300))
+     (org-indent-mode)
+     (variable-pitch-mode 1)
+     (visual-line-mode 1)
+     (setq org-ellipsis " ▾")
+     (defun amt/org-mode-visual-fill ()
+     (setq visual-fill-column-width 150 
+     visual-fill-column-center-text t)
+     (visual-fill-column-mode 1))
+     (use-package visual-fill-column
+     :hook (org-mode . amt/org-mode-visual-fill))
+     (use-package org-bullets
+     :hook (org-mode . org-bullets-mode)
+     :custom
+     (org-bullets-bullet-list '("◉" "○" "●" "○" "●" "○" "●")))
+     (use-package olivetti)
+     (use-package focus))
+
+
+
+  (use-package org-appear
+    :hook
+    (org-mode . org-appear-mode))
+
+  
+
+
+
+#+end_src
+
+** Org Roam
+
+#+begin_src emacs-lisp
+
+    (use-package org-roam
+      :ensure t
+      :custom
+      (org-roam-directory "~/Documents/org-roam")
+      (org-roam-capture-templates
+      '(("d" "default" plain
+      "%?"
+      :if-new (file+head "${slug}.org" "#+title: ${title}\n")
+      :unnarrowed t)))
+
+      :bind (("C-c n l" . org-roam-buffer-toggle)
+      ("C-c n f" . org-roam-node-find)
+      ("C-c t a" . org-roam-tag-add)
+      ("C-c C-c" . org-roam-capture)
+      ("C-c n i" . org-roam-node-insert))
+     
+      :config
+      (setq org-roam-completion-system 'ido)
+      (org-roam-setup))
+
+  (setq org-roam-node-display-template
+  	(concat "${title:*} "
+  		(propertize "${tags:10}" 'face 'org-tag)))
+
+  (setq org-roam-mode-sections
+      (list #'org-roam-backlinks-section
+  	    #'org-roam-reflinks-section
+  	    ))
+
+  (add-to-list 'display-buffer-alist
+  	     '("\\*org-roam\\*"
+  	       (display-buffer-in-side-window)
+  	       (side . right)
+  	       (slot . 0)
+  	       (window-width . 0.33)
+  	       (window-parameters . ((no-other-window . t)
+  				     (no-delete-other-windows . t)))))
+
+  (setq org-roam-completion-everywhere t)
+#+end_src
+
+** Org Agenda
+#+begin_src emacs-lisp
+(define-key global-map (kbd "C-c a") 'org-agenda)
+      (setq org-directory "~/Documents/org-roam")
+      (setq org-agenda-files '("/home/mamad/Documents/org-roam"))
+      (setq org-agenda-start-with-log-mode t)
+      (setq org-log-done 'time)
+      (setq org-log-into-drawer t)
+
+        (setq org-todo-keywords
+          '((sequence "TODO(t)" "NEXT(n)" "|" "HALT(h)"  "|" "DONE(d!)")))
+
+      (setq org-todo-keyword-faces
+          '(("TODO" . "yellow") 
+    ("NEXT" . "green")
+    ("DONE" . "red")
+            ("CANCELED" . (:foreground "blue" :weight bold))))
+
+  (defun org-summary-todo (n-done n-not-done)
+    "Switch entry to DONE when all subentries are done, to TODO otherwise."
+    (let (org-log-done org-todo-log-states)   ; turn off logging
+      (org-todo (if (= n-not-done 0) "DONE" "TODO"))))
+
+  (add-hook 'org-after-todo-statistics-hook #'org-summary-todo)
+#+end_src
+
+*** View
+#+begin_src emacs-lisp
+(setq org-agenda-custom-commands
+      '(("g" "Get Things Done (GTD)"
+         ((agenda ""
+                  ((org-agenda-skip-function
+                    '(org-agenda-skip-entry-if 'deadline))
+                   (org-deadline-warning-days 0)))
+          (todo "NEXT"
+                ((org-agenda-skip-function
+                  '(org-agenda-skip-entry-if 'deadline))
+                 (org-agenda-prefix-format "  %i %-12:c [%e] ")
+                 (org-agenda-overriding-header "\nTasks\n")))
+          (agenda nil
+                  ((org-agenda-entry-types '(:deadline))
+                   (org-agenda-format-date "")
+                   (org-deadline-warning-days 7)
+                   (org-agenda-skip-function
+                    '(org-agenda-skip-entry-if 'notregexp "\\* NEXT"))
+                   (org-agenda-overriding-header "\nDeadlines")))
+          (tags-todo "inbox"
+                     ((org-agenda-prefix-format "  %?-12t% s")
+                      (org-agenda-overriding-header "\nInbox\n")))
+          (tags "CLOSED>=\"<today>\""
+                ((org-agenda-overriding-header "\nCompleted today\n")))))))
+#+end_src
+
+** Org Presentation
+#+begin_src emacs-lisp
+;  (eval-after-load "org-present"
+ ;   '(progn
+  ;     (add-hook 'org-present-mode-hook
+;		 (lambda ()
+;		   (org-present-big)
+;		   (org-display-inline-images)
+;		   (org-present-hide-cursor)
+;		   (org-present-read-only)))
+ ;      (add-hook 'org-present-mode-quit-hook
+;		 (lambda ()
+;		   (org-present-small)
+;		   (org-remove-inline-images)
+;		   (org-present-show-cursor)
+;		   (org-present-read-write)))))
+#+end_src
+** Org Babel
+#+begin_src emacs-lisp
+  (when (memq window-system '(mac ns x))
+    (exec-path-from-shell-initialize)) 
+
+
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '(
+       (python  . t)
+       (lisp    . t)
+       ))
+#+end_src
+
+* Development
+** LSP
+
+#+begin_src emacs-lisp
+  ; (lsp-mode . lsp-enable-which-key-integration)
+;(lsp-enable-which-key-integration t)
+   (use-package lsp-mode
+     :commands (lsp lsp-deferred)
+     :hook (
+     (org-mode . lsp)
+     (python-mode . lsp)
+     (go-mode . lsp)
+     (rust-mode . lsp)
+     (lua-mode . lsp)
+     )
+     :init
+     (setq lsp-keymap-prefix "C-c l")
+     :config
+     )
+
+   (use-package lsp-ui
+     :hook (lsp-mode . lsp-ui-mode)
+     :custom
+     (lsp-ui-doc-position 'bottom))
+
+#+end_src
+
+** Company
+
+#+begin_src emacs-lisp
+
+ (use-package company
+   :after lsp-mode
+   :hook (lsp-mode . company-mode)
+   :ensure t
+   :bind (:map company-active-map
+    ("<tab>" . company-complete-selection))
+    (:map lsp-mode-map
+    ("<tab>" . company-indent-or-complete-common))
+   :custom
+    (company-minimum-prefix-length 1)
+    (company-idle-delay 0.0))
+
+ (use-package company-box
+   :hook (company-mode . company-box-mode))
+
+ (add-hook 'after-init-hook 'global-company-mode)
+
+#+end_src
+
+** Projectile
+
+#+begin_src emacs-lisp
+
+ (use-package projectile
+   :ensure t
+   :init
+   (projectile-mode +1)
+   :bind (:map projectile-mode-map
+   ("s-p" . projectile-command-map)
+   ("C-c p" . projectile-command-map)))
+
+ (use-package counsel-projectile
+   :after projectile
+   :config (counsel-projectile-mode))
+
+#+end_src
+
+** Languages
+*** Python
+
+#+begin_src emacs-lisp
+
+ (use-package python-mode)
+
+ (use-package elpy
+   :ensure t
+   :init
+   (elpy-enable))
+
+#+end_src
+
+* Utilities
+** Which Key
+
+#+begin_src emacs-lisp
+
+ (use-package which-key
+   :defer 0
+   :diminish which-key-mode
+   :config
+     (which-key-mode)
+     (setq which-key-idle-delay 1))
+
+#+end_src
+
+** All The Icons
+
+#+begin_src emacs-lisp
+
+ (use-package all-the-icons-ivy-rich
+   :init
+   (all-the-icons-ivy-rich-mode 1))
+
+#+end_src
+
+
+** Markdown Mode
+#+begin_src emacs-lisp
+  (use-package markdown-mode
+    :ensure t
+    :mode (("README\\.md\\'" . gfm-mode)
+	   ("\\.md\\'" . markdown-mode)
+	   ("\\.markdown\\'" . markdown-mode))
+    :init (setq markdown-command "multimarkdown"))
+#+end_src
+
+** Deft
+#+begin_src emacs-lisp
+  (use-package deft
+    :bind ("<f8>" . deft)
+    :commands (deft)
+    :config (setq deft-directory "~/Documents/org-roam"
+                  deft-extensions '("org")
+  	deft-use-filename-as-title t	))
+#+end_src
