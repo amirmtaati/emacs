@@ -1,6 +1,6 @@
 # Amir's Modern Emacs Configuration
 
-![Screenshot of Emacs with this config](screenshot.png) *[optional screenshot]*
+![Screenshot of Emacs with this config](screenshot.png) 
 
 A **literate-programming** Emacs configuration that transforms your editor into a:
 - Full-featured IDE ✨
