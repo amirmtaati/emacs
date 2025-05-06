@@ -1,568 +1,1476 @@
-#+TITLE: Amir M. Taati's Emacs Configuration
+#+TITLE: Modern Emacs: A Literate Configuration
 #+AUTHOR: Amir Mohammad Taati
+#+DESCRIPTION: A minimal, functional, and extensible Emacs configuration
+#+STARTUP: overview
 
 * Introduction
-This is my literate programming style GNU Emacs configuration file.
+:PROPERTIES:
+:CUSTOM_ID: introduction
+:END:
 
-* Packages
-Many extra features can be added to Emacs by amazing packages. Here, all the resources for fetching commuinty packages is set up.
-Mainly being =MELPA=. Furthermore, =use-package= is being used to download and configure packages rather than the default
-package manager.
+This is a literate programming style GNU Emacs configuration designed to be:
+- *Minimal* yet powerful
+- *Functional* with IDE-like features
+- *Extensible* for personal customization
+- *Well-documented* for easy understanding and sharing
+
+** How to Use This Configuration
+:PROPERTIES:
+:CUSTOM_ID: how-to-use
+:END:
+
+This configuration uses the literate programming approach with Org mode. The code blocks in this document are extracted and loaded when Emacs starts.
+
+To use this configuration:
+
+1. Clone the repository to your Emacs configuration directory (typically `~/.config/emacs/` or `~/.emacs.d/`)
+2. Make sure the `init.el` file contains code to load this org file
+3. Start Emacs
+
+To customize:
+- Modify sections according to your needs
+- Comment/uncomment specific code blocks to enable/disable features
+- Adjust variables marked with `amt/` prefix to personalize settings
+
+** Structure
+:PROPERTIES:
+:CUSTOM_ID: structure
+:END:
+
+The configuration is organized into these main sections:
+- *Core Setup*: Package management, basic settings
+- *User Interface*: Visual appearance and ergonomics
+- *Editor Experience*: Text editing and navigation enhancements
+- *Org Mode*: Knowledge management and note-taking
+- *Development*: Programming tools and IDE features
+- *Utilities*: Additional productivity tools
+
+* Core Setup
+:PROPERTIES:
+:CUSTOM_ID: core-setup
+:END:
+
+** Package Management
+:PROPERTIES:
+:CUSTOM_ID: package-management
+:END:
+
+We'll use MELPA and other package archives to install packages, with `use-package` for declarative package management.
 
 #+begin_src emacs-lisp
+  ;; Initialize package sources
+  (require 'package)
 
- (require 'package)
+  ;; Set up package repositories
+  (setq package-archives '(("melpa" . "https://melpa.org/packages/")
+                           ("org" . "https://orgmode.org/elpa/")
+                           ("gnu" . "https://elpa.gnu.org/packages/")
+                           ("elpa" . "https://elpa.gnu.org/packages/")
+                           ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
 
- (setq package-archives '(("melpa" . "https://melpa.org/packages/")  
-                          ("org" . "https://orgmode.org/elpa/")
-                          ("gnu" . "https://elpa.gnu.org/packages/")
-                          ("elpa" . "https://elpa.gnu.org/packages/")
-                          ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+  ;; Initialize the package system
+  (package-initialize)
+  (unless package-archive-contents
+    (package-refresh-contents))
 
- (package-initialize)
- (unless package-archive-contents
-   (package-refresh-contents))
+  ;; Install and configure use-package
+  (unless (package-installed-p 'use-package)
+    (package-install 'use-package))
 
- (unless (package-installed-p 'use-package)
-   (package-install 'use-package))
+  (require 'use-package)
+  (setq use-package-always-ensure t)  ;; Always ensure packages are installed
+  (setq use-package-verbose t)        ;; Show package loading details in *Messages*
+#+end_src
 
- (require 'use-package)
- (setq use-package-always-ensure t)
+** Performance Optimizations
+:PROPERTIES:
+:CUSTOM_ID: performance-optimizations
+:END:
 
+Improve startup time and overall performance with these settings.
+
+#+begin_src emacs-lisp
+  ;; Startup performance improvements
+  (setq gc-cons-threshold (* 50 1000 1000))  ;; Increase garbage collection threshold during startup
+
+  ;; Reset garbage collection after startup
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (setq gc-cons-threshold (* 2 1000 1000))))  ;; Reset to 2MB after startup
+
+  ;; Native compilation settings (if available)
+  (when (featurep 'native-compile)
+    (setq native-comp-async-report-warnings-errors nil)  ;; Silence compilation warnings
+    (setq package-native-compile t))                     ;; Native compile packages
+
+  ;; Improve file-name-handler-alist performance during startup
+;;  (let ((default-file-name-handler-alist file-name-handler-alist))
+;;    (setq file-name-handler-alist nil)
+;;    (add-hook 'emacs-startup-hook
+;;              (lambda ()
+;;                (setq file-name-handler-alist default-file-name-handler-alist))))
+#+end_src
+
+** Basic Settings
+:PROPERTIES:
+:CUSTOM_ID: basic-settings
+:END:
+
+Configure fundamental Emacs behavior.
+
+#+begin_src emacs-lisp
+  ;; Sensible defaults
+  (setq inhibit-startup-message t)              ;; No startup screen
+  (setq initial-scratch-message                 ;; Custom scratch message
+        ";; Welcome to Modern Emacs!\n;; Happy hacking!\n\n")
+  (setq make-backup-files nil)                  ;; No backup files
+  (setq auto-save-default nil)                  ;; No auto-save files
+  (setq create-lockfiles nil)                   ;; No lock files
+  (setq debug-on-error t)                       ;; Show debug info on error
+  (setq visible-bell t)                         ;; Flash instead of beep
+  (setq ring-bell-function 'ignore)             ;; Disable bell completely
+  (setq frame-inhibit-implied-resize t)         ;; Don't resize frames implicitly
+  (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+                                                ;; Keep customizations in separate file
+  ;; Load custom file if it exists
+  (when (file-exists-p custom-file)
+    (load custom-file))
+
+  ;; UTF-8 as default encoding
+  (set-language-environment "UTF-8")
+  (set-default-coding-systems 'utf-8)
+
+  ;; Line numbers and column info
+  (column-number-mode)
+  (global-display-line-numbers-mode t)
+
+  ;; Disable line numbers for certain modes
+  (dolist (mode '(org-mode-hook
+                  term-mode-hook
+                  shell-mode-hook
+                  treemacs-mode-hook
+                  eshell-mode-hook
+                  vterm-mode-hook
+                  dired-mode-hook
+                  pdf-view-mode-hook
+                  dashboard-mode-hook))
+    (add-hook mode (lambda () (display-line-numbers-mode 0))))
+
+  ;; Parenthesis handling
+  (electric-pair-mode 1)                  ;; Auto-insert matching parenthesis
+  (setq electric-pair-preserve-balance nil)
+  (show-paren-mode 1)                     ;; Highlight matching parentheses
+
+  ;; Tab settings
+  (setq-default tab-width 4)
+  (setq-default indent-tabs-mode nil)     ;; Use spaces instead of tabs
+
+  ;; Better scrolling
+  (setq scroll-margin 3)
+  (setq scroll-conservatively 101)
+  (setq scroll-preserve-screen-position t)
+
+  ;; Remember cursor position in files
+  (save-place-mode 1)
+
+  ;; Remember minibuffer history
+  (savehist-mode 1)
+
+  ;; Keep files up to date when changed outside Emacs
+  (global-auto-revert-mode 1)
+  (setq global-auto-revert-non-file-buffers t)
 #+end_src
 
 * User Interface
-The default UI is a bit annoying and unproductive. Here are some configurations around fonts, themes, modeline and etc.
+:PROPERTIES:
+:CUSTOM_ID: user-interface
+:END:
 
-** Basic Settings
-When you first open up Emacs, you are faced with so many different distracting graphical details like menu bar and etc. Here
-I get rid of all of them.
+** Frame and Window Settings
+:PROPERTIES:
+:CUSTOM_ID: frame-and-window
+:END:
 
-#+begin_src emacs-lisp
-
- (setq inhibit-startup-message t) 
-
- (when (display-graphic-p)
-	(global-hl-line-mode))
-	(column-number-mode)
-	(global-display-line-numbers-mode t)
-
- (dolist (mode '(org-mode-hook
-		  term-mode-hook
-		  shell-mode-hook
-		  treemacs-mode-hook
-		  org-agenda-mode-hook
-		  vterm-mode-hook
-		  eshell-mode-hook))
-
- (add-hook mode (lambda () (display-line-numbers-mode 0))))
-
- (setq make-backup-files nil)
- (setq debug-on-error t)
- (setq visible-bell 1)
- (setq electric-pair-preserve-balance nil)
- (setq tab-width 4)
- (setq frame-inhibit-implied-resize t)
- (scroll-bar-mode -1)              
- (tool-bar-mode   -1)             
- (tooltip-mode    -1)            
- (menu-bar-mode   -1)           
- (electric-pair-mode 1)
- (set-fringe-mode 20)
-
-#+end_src
-
-** Transparency
+Configure the overall appearance of Emacs frames and windows.
 
 #+begin_src emacs-lisp
+  ;; Disable unnecessary GUI elements
+  (scroll-bar-mode -1)              ;; No scroll bars
+  (tool-bar-mode -1)                ;; No toolbar
+  (tooltip-mode -1)                 ;; No tooltips
+  (menu-bar-mode -1)                ;; No menu bar
+  (set-fringe-mode 15)              ;; Set fringe width
 
-  (defvar amt/frame-transparency '(90 . 90))
-  (set-frame-parameter (selected-frame) 'alpha amt/frame-transparency)
-  (add-to-list 'default-frame-alist `(alpha . ,amt/frame-transparency))
+  ;; Frame size and position
   (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
   (add-to-list 'default-frame-alist '(fullscreen . maximized))
 
+  ;; Transparency settings
+  (defvar amt/frame-transparency '(95 . 95))
+  (set-frame-parameter (selected-frame) 'alpha amt/frame-transparency)
+  (add-to-list 'default-frame-alist `(alpha . ,amt/frame-transparency))
+
+  ;; Frame title format
+  (setq frame-title-format
+        '((:eval (if (buffer-file-name)
+                     (abbreviate-file-name (buffer-file-name))
+                   "%b"))))
+
+  ;; Line highlighting
+  (when (display-graphic-p)
+    (global-hl-line-mode))
 #+end_src
 
 ** Fonts
+:PROPERTIES:
+:CUSTOM_ID: fonts
+:END:
+
+Configure fonts for different contexts.
 
 #+begin_src emacs-lisp
-  (defvar amt/font-family "Fira Code")
+  ;; Font configuration
+  (defvar amt/default-font-family "Fira Code")
+  (defvar amt/variable-font-family "Fira Code")
   (defvar amt/font-size 160)
 
+  ;; Set default font
   (set-face-attribute 'default nil
-    :family amt/font-family
-    :height amt/font-size)
+                      :family amt/default-font-family
+                      :height amt/font-size)
 
+  ;; Set fixed-pitch font
   (set-face-attribute 'fixed-pitch nil
-    :family amt/font-family 
-    :height amt/font-size)
+                      :family amt/default-font-family
+                      :height amt/font-size)
 
+  ;; Set variable-pitch font
   (set-face-attribute 'variable-pitch nil
-    :family amt/font-family 
-    :height amt/font-size)
+                      :family amt/variable-font-family
+                      :height amt/font-size)
 
+  ;; Font scaling
+  (use-package default-text-scale
+    :bind
+    (("C-=" . default-text-scale-increase)
+     ("C--" . default-text-scale-decrease)
+     ("C-0" . default-text-scale-reset)))
 
- (use-package default-text-scale
-   :bind
-   (("C-)" . default-text-scale-reset)
-    ("C-=" . default-text-scale-increase)
-    ("C--" . default-text-scale-decrease)))
-
-#+end_src
-
-** Dashboard
-
-#+begin_src emacs-lisp
-
- (use-package dashboard
-   :config
-    (setq 
-    dashboard-banner-logo-title nil
-    dashboard-center-content t
-    dashboard-set-footer nil
-    dashboard-page-separator "\n\n\n"
-    dashboard-items '((recents  . 5)))
-     (dashboard-setup-startup-hook))
-
-#+end_src
-
-** Ivy
-
-#+begin_src emacs-lisp
-
- (use-package ivy
-   :diminish
-   :bind (("C-s" . swiper)
-   :map ivy-minibuffer-map
-      ("TAB" . ivy-alt-done)
-      ("C-l" . ivy-alt-done)
-      ("C-j" . ivy-next-line)
-      ("C-k" . ivy-previous-line)
-   :map ivy-switch-buffer-map
-      ("C-k" . ivy-previous-line)
-      ("C-l" . ivy-done)
-      ("C-d" . ivy-switch-buffer-kill)
-   :map ivy-reverse-i-search-map
-      ("C-k" . ivy-previous-line)
-      ("C-d" . ivy-reverse-i-search-kill))
-   :config
-      (ivy-mode 1))
-
- (use-package ivy-rich
-   :after ivy
-   :init
-   (ivy-rich-mode 1))
-
-; (use-package ivy-prescient
-;   :custom
-;   (ivy-prescient-enable-filtering nil)
-;   :config
-;     (prescient-persist-mode 1)
-;     (ivy-prescient-mode 1))
-
-#+end_src
-
-** Counsel
-
-#+begin_src emacs-lisp
-
- (use-package counsel
-   :custom
-   (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
-   :bind
-     ("M-x" . 'counsel-M-x)
-     ("C-x b" . 'counsel-switch-buffer)
-     ("C-x C-f" . 'counsel-find-file)
-     ("C-s" . 'swiper))
- ;  :config
-  ;   (use-package flx)
-   ;  (ivy-mode 1)
-    ; (setq ivy-use-virtual-buffers t)
-     ;(setq ivy-count-format "(%d/%d) ")
-    ; (setq ivy-initial-inputs-alist nil)
-    ; (setq ivy-re-builders-alist
-;	    '((swiper . ivy--regex-plus)
-;	      (t . ivy--regex-fuzzy)))
-
+  ;; Font ligatures (requires Fira Code or similar font with ligatures)
+  (use-package ligature
+    :config
+    ;; Enable ligatures in programming modes
+    (ligature-set-ligatures 'prog-mode '("www" "**" "***" "**/" "*>" "*/" "\\\\" "\\\\\\" "{-" "::"
+                                         ":::" ":=" "!!" "!=" "!==" "-}" "----" "-->" "->" "->>"
+                                         "-<" "-<<" "-~" "#{" "#[" "##" "###" "####" "#(" "#?" "#_"
+                                         "#_(" ".-" ".=" ".." "..<" "..." "?=" "??" ";;" "/*" "/**"
+                                         "/=" "/==" "/>" "//" "///" "&&" "||" "||=" "|=" "|>" "^=" "$>"
+                                         "++" "+++" "+>" "=:=" "==" "===" "==>" "=>" "=>>" "<="
+                                         "=<<" "=/=" ">-" ">=" ">=>" ">>" ">>-" ">>=" ">>>" "<*"
+                                         "<*>" "<|" "<|>" "<$" "<$>" "<!--" "<-" "<--" "<->" "<+"
+                                         "<+>" "<=" "<==" "<=>" "<=<" "<>" "<<" "<<-" "<<=" "<<<"
+                                         "<~" "<~~" "</" "</>" "~@" "~-" "~>" "~~" "~~>" "%%"))
+    (global-ligature-mode t))
 #+end_src
 
 ** Theme
-#+begin_src emacs-lisp
-(setq modus-themes-mode-line '(accented borderless)
-      modus-themes-bold-constructs t
-      modus-themes-italic-constructs t
-      modus-themes-fringes 'subtle
-      modus-themes-tabs-accented t
-      modus-themes-paren-match '(bold intense)
-      modus-themes-prompts '(bold intense)
-      modus-themes-completions 'opinionated
-      modus-themes-org-blocks 'tinted-background
-      modus-themes-scale-headings t
-      modus-themes-region '(bg-only)
-      modus-themes-headings
-      '((1 . (rainbow overline background 1.4))
-        (2 . (rainbow background 1.3))
-        (3 . (rainbow bold 1.2))
-        (t . (semilight 1.1))))
+:PROPERTIES:
+:CUSTOM_ID: theme
+:END:
 
-;; Load the dark theme by default
-(load-theme 'modus-vivendi t)
-#+end_src
-
-  #+begin_src emacs-lisp
-
-  ; (defvar amt/theme 'doom-dark+)
-
-  ; (use-package doom-themes
-  ;   :ensure t
-  ;   :config
-  ;   (setq doom-themes-enable-bold t)
-  ;   (setq doom-themes-enable-italic t) 
-  ;   (load-theme amt/theme t)
-  ;   (doom-themes-visual-bell-config)
-  ;   (doom-themes-neotree-config)
-  ;   (doom-themes-treemacs-config)
-  ;   (doom-themes-org-config))
-
-#+end_src
-** Modeline
-#+begin_src emacs-lisp
-
- (use-package doom-modeline
-   :ensure t
-   :hook (after-init . doom-modeline-mode))
-
-#+end_src
-** Keybindings
+Configure the color theme.
 
 #+begin_src emacs-lisp
+  ;; Theme configuration
+  ;; Option 1: Use built-in Modus themes
+  (use-package modus-themes
+    :init
+    (setq modus-themes-mode-line '(accented borderless)
+          modus-themes-bold-constructs t
+          modus-themes-italic-constructs t
+          modus-themes-fringes 'subtle
+          modus-themes-tabs-accented t
+          modus-themes-paren-match '(bold intense)
+          modus-themes-prompts '(bold intense)
+          modus-themes-completions 'opinionated
+          modus-themes-org-blocks 'tinted-background
+          modus-themes-scale-headings t
+          modus-themes-region '(bg-only)
+          modus-themes-headings
+          '((1 . (rainbow overline background 1.4))
+            (2 . (rainbow background 1.3))
+            (3 . (rainbow bold 1.2))
+            (t . (semilight 1.1))))
 
- (global-set-key (kbd "<f1>") 'vterm)
+    ;; Load the dark theme by default
+    :config
+    (load-theme 'modus-vivendi t))
 
- (use-package evil
-   :ensure t
-   :init
-   (setq evil-want-keybinding nil)
-   :config
-   (evil-mode 1))
+  ;; Option 2: Doom themes (commented out by default)
+  ;; Uncomment to use Doom themes instead of Modus
+  ;; (use-package doom-themes
+  ;;   :config
+  ;;   (setq doom-themes-enable-bold t
+  ;;         doom-themes-enable-italic t)
+  ;;   (load-theme 'doom-one t)
+  ;;   (doom-themes-visual-bell-config)
+  ;;   (doom-themes-org-config))
+#+end_src
 
- (use-package evil-collection
-   :after evil
-   :ensure t
-   :config
-   (evil-collection-init))
+** Dashboard
+:PROPERTIES:
+:CUSTOM_ID: dashboard
+:END:
 
- (use-package evil-surround
-   :after evil
-   :config
-   (global-evil-surround-mode 1))
+Configure a welcome dashboard for Emacs.
 
- (use-package evil-org
-   :after (evil org)
-   :demand t
-   :config
-   (require 'evil-org-agenda)
-   (evil-org-agenda-set-keys))
+#+begin_src emacs-lisp
+  ;; Dashboard configuration
+  (use-package dashboard
+    :config
+    (setq dashboard-banner-logo-title "Welcome to Modern Emacs")
+    (setq dashboard-startup-banner 'logo)  ;; Use Emacs logo
+    (setq dashboard-center-content t)
+    (setq dashboard-set-footer nil)
+    (setq dashboard-items '((recents  . 5)
+                            (bookmarks . 3)
+                            (projects . 3)
+                            (agenda . 3)))
+    (setq dashboard-set-heading-icons t)
+    (setq dashboard-set-file-icons t)
+    (setq dashboard-set-init-info t)
+    (dashboard-setup-startup-hook))
+#+end_src
 
+** Mode Line
+:PROPERTIES:
+:CUSTOM_ID: mode-line
+:END:
+
+Configure a modern and informative mode line.
+
+#+begin_src emacs-lisp
+  ;; Mode line configuration
+  (use-package doom-modeline
+    :init (doom-modeline-mode 1)
+    :custom
+    (doom-modeline-height 25)
+    (doom-modeline-bar-width 3)
+    (doom-modeline-buffer-file-name-style 'truncate-except-project)
+    (doom-modeline-icon t)
+    (doom-modeline-major-mode-icon t)
+    (doom-modeline-major-mode-color-icon t)
+    (doom-modeline-buffer-state-icon t)
+    (doom-modeline-buffer-modification-icon t)
+    (doom-modeline-time-icon t)
+    (doom-modeline-unicode-fallback nil)
+    (doom-modeline-minor-modes nil)
+    (doom-modeline-enable-word-count t)
+    (doom-modeline-continuous-word-count-modes '(markdown-mode gfm-mode org-mode))
+    (doom-modeline-buffer-encoding t)
+    (doom-modeline-indent-info nil)
+    (doom-modeline-checker-simple-format t)
+    (doom-modeline-vcs-max-length 12)
+    (doom-modeline-env-version t)
+    (doom-modeline-env-python-executable "python")
+    (doom-modeline-env-go-executable "go"))
+
+  ;; Display icons
+  (use-package all-the-icons
+    :if (display-graphic-p))
+
+  ;; All the icons for ivy
+  (use-package all-the-icons-ivy-rich
+    :after (ivy all-the-icons)
+    :init (all-the-icons-ivy-rich-mode 1))
+#+end_src
+
+* Editor Experience
+:PROPERTIES:
+:CUSTOM_ID: editor-experience
+:END:
+
+** Completion Framework
+:PROPERTIES:
+:CUSTOM_ID: completion-framework
+:END:
+
+Configure a flexible completion system for commands and files.
+
+#+begin_src emacs-lisp
+  ;; Ivy, Counsel, and Swiper configuration
+  (use-package ivy
+    :diminish
+    :bind (("C-s" . swiper)
+           :map ivy-minibuffer-map
+           ("TAB" . ivy-alt-done)
+           ("C-l" . ivy-alt-done)
+           ("C-j" . ivy-next-line)
+           ("C-k" . ivy-previous-line)
+           :map ivy-switch-buffer-map
+           ("C-k" . ivy-previous-line)
+           ("C-l" . ivy-done)
+           ("C-d" . ivy-switch-buffer-kill)
+           :map ivy-reverse-i-search-map
+           ("C-k" . ivy-previous-line)
+           ("C-d" . ivy-reverse-i-search-kill))
+    :config
+    (ivy-mode 1)
+    (setq ivy-use-virtual-buffers t)
+    (setq ivy-count-format "(%d/%d) ")
+    (setq ivy-initial-inputs-alist nil))
+
+  ;; Enhanced ivy display
+  (use-package ivy-rich
+    :after ivy
+    :init
+    (ivy-rich-mode 1)
+    :config
+    (setq ivy-rich-parse-remote-buffer nil))
+
+  ;; Counsel for improved commands
+  (use-package counsel
+    :bind (("M-x" . counsel-M-x)
+           ("C-x b" . counsel-switch-buffer)
+           ("C-x C-f" . counsel-find-file)
+           ("C-c g" . counsel-git)
+           ("C-c j" . counsel-git-grep)
+           ("C-c k" . counsel-ag)
+           ("C-c r" . counsel-rg)
+           ("C-c C-r" . ivy-resume))
+    :config
+    (counsel-mode 1))
+
+  ;; Better sorting with prescient
+  (use-package ivy-prescient
+    :after ivy
+    :config
+    (ivy-prescient-mode 1)
+    (prescient-persist-mode 1))
+#+end_src
+
+** Key Bindings
+:PROPERTIES:
+:CUSTOM_ID: key-bindings
+:END:
+
+Configure key bindings for better ergonomics and modal editing.
+
+#+begin_src emacs-lisp
+  ;; Enhance Help
+  (use-package helpful
+    :bind
+    ([remap describe-function] . helpful-callable)
+    ([remap describe-variable] . helpful-variable)
+    ([remap describe-key] . helpful-key)
+    ("C-h F" . helpful-function)
+    ("C-h C" . helpful-command))
+
+  ;; Which-key for key binding help
+  (use-package which-key
+    :defer 0
+    :diminish which-key-mode
+    :config
+    (which-key-mode)
+    (setq which-key-idle-delay 0.3)
+    (setq which-key-sort-order 'which-key-key-order-alpha))
+
+  ;; Evil mode for Vim keybindings
+  (use-package evil
+    :init
+    (setq evil-want-integration t)
+    (setq evil-want-keybinding nil)
+    (setq evil-want-C-u-scroll t)
+    (setq evil-want-C-i-jump nil)
+    :config
+    (evil-mode 1)
+
+    ;; Use visual line motions even outside of visual-line-mode buffers
+    (evil-global-set-key 'motion "j" 'evil-next-visual-line)
+    (evil-global-set-key 'motion "k" 'evil-previous-visual-line)
+
+    ;; Define additional Evil keybindings
+    (evil-define-key 'normal 'global
+      (kbd "C-e") 'evil-end-of-line
+      (kbd "C-a") 'evil-beginning-of-line
+      (kbd "C-n") 'evil-next-line
+      (kbd "C-p") 'evil-previous-line))
+
+  ;; Evil collection for consistent Evil bindings
+  (use-package evil-collection
+    :after evil
+    :config
+    (evil-collection-init))
+
+  ;; Evil surround for editing pairs
+  (use-package evil-surround
+    :after evil
+    :config
+    (global-evil-surround-mode 1))
+
+  ;; Evil org for better org-mode integration
+  (use-package evil-org
+    :after (evil org)
+    :hook (org-mode . evil-org-mode)
+    :config
+    (require 'evil-org-agenda)
+    (evil-org-agenda-set-keys))
+
+  ;; General for better key binding configuration
+  (use-package general
+    :config
+    (general-create-definer amt/leader-keys
+      :keymaps '(normal insert visual emacs)
+      :prefix "SPC"
+      :global-prefix "C-SPC")
+
+    (amt/leader-keys
+      "f"  '(:ignore t :which-key "files")
+      "ff" '(counsel-find-file :which-key "find file")
+      "fr" '(counsel-recentf :which-key "recent files")
+
+      "b"  '(:ignore t :which-key "buffers")
+      "bb" '(counsel-switch-buffer :which-key "switch buffer")
+      "bd" '(kill-current-buffer :which-key "kill buffer")
+
+      "o"  '(:ignore t :which-key "org")
+      "oa" '(org-agenda :which-key "agenda")
+      "oc" '(org-capture :which-key "capture")
+      "ol" '(org-store-link :which-key "store link")
+
+      "p"  '(:ignore t :which-key "project")
+      "pf" '(projectile-find-file :which-key "find file")
+      "ps" '(projectile-switch-project :which-key "switch project")
+      "pg" '(projectile-grep :which-key "grep")
+
+      "g"  '(:ignore t :which-key "git")
+      "gs" '(magit-status :which-key "status")
+      "gb" '(magit-blame :which-key "blame")
+
+      "t"  '(:ignore t :which-key "toggles")
+      "tt" '(counsel-load-theme :which-key "choose theme")
+      "tv" '(visual-line-mode :which-key "visual line mode")
+
+      "h"  '(:ignore t :which-key "help")
+      "hf" '(helpful-callable :which-key "function")
+      "hv" '(helpful-variable :which-key "variable")
+      "hk" '(helpful-key :which-key "key binding")))
+
+  ;; Terminal keybinding
+  (global-set-key (kbd "<f1>") 'vterm)
+#+end_src
+
+** Text Editing
+:PROPERTIES:
+:CUSTOM_ID: text-editing
+:END:
+
+Enhance the text editing experience with useful packages.
+
+#+begin_src emacs-lisp
+  ;; Multiple cursors
+  (use-package multiple-cursors
+    :bind
+    (("C->" . mc/mark-next-like-this)
+     ("C-<" . mc/mark-previous-like-this)
+     ("C-c C->" . mc/mark-all-like-this)))
+
+  ;; Expand region
+  (use-package expand-region
+    :bind ("C-=" . er/expand-region))
+
+  ;; Visual text wrapping and margin
+  (use-package visual-fill-column
+    :hook (org-mode . amt/enable-visual-fill))
+
+  (defun amt/enable-visual-fill ()
+    "Enable visual-fill-column mode with specified settings."
+    (setq visual-fill-column-width 100)
+    (setq visual-fill-column-center-text t)
+    (visual-fill-column-mode 1))
+
+  ;; Distraction-free writing
+  (use-package olivetti
+    :bind
+    ("C-c o" . olivetti-mode)
+    :config
+    (setq olivetti-body-width 100))
+
+  ;; Highlight changes in buffers
+;;  (use-package volatile-highlights
+;;    :diminish
+;;    :config
+;;    (volatile-highlights-mode +1))
+
+  ;; Rainbow delimiters for nested parens
+  (use-package rainbow-delimiters
+    :hook (prog-mode . rainbow-delimiters-mode))
+
+  ;; Focus mode
+  (use-package focus
+    :commands focus-mode)
 #+end_src
 
 * Org Mode
-** Basic Settings
+:PROPERTIES:
+:CUSTOM_ID: org-mode
+:END:
+
+Configure Org Mode for notes, tasks, documents, and more.
+
+** Basic Configuration
+:PROPERTIES:
+:CUSTOM_ID: org-basic-config
+:END:
+
+Set up the fundamentals of Org Mode.
 
 #+begin_src emacs-lisp
+  ;; Org mode configuration
+  (use-package org
+    :pin org
+    :hook (org-mode . amt/org-mode-setup)
+    :config
+    (setq org-ellipsis " ▾"
+          org-hide-emphasis-markers t
+          org-src-fontify-natively t
+          org-fontify-quote-and-verse-blocks t
+          org-src-tab-acts-natively t
+          org-edit-src-content-indentation 0
+          org-confirm-babel-evaluate nil
+          org-return-follows-link t
+          org-hide-leading-stars t
+          org-pretty-entities t
+          org-startup-indented t
+          org-adapt-indentation t
+          org-startup-folded 'content
+          org-image-actual-width '(300)
+          org-startup-with-inline-images t
+          ;; Source block settings
+          org-src-window-setup 'current-window
+          ;; Table settings
+          org-table-convert-region-max-lines 20000
+          ;; Export settings
+          org-export-with-section-numbers nil
+          org-export-with-toc t)
 
-   (use-package org
-     :pin org
-  ;   :commands (org-capture org-agenda)
-     :config
-    (setq-default org-startup-indented t
-		  org-pretty-entities t
-		  org-use-sub-superscripts "{}"
-		  org-hide-emphasis-markers t
-		  org-startup-with-inline-images t
-		  org-image-actual-width '(300))
-     (org-indent-mode)
-     (variable-pitch-mode 1)
-     (visual-line-mode 1)
-     (setq org-ellipsis " ▾")
-     (defun amt/org-mode-visual-fill ()
-     (setq visual-fill-column-width 150 
-     visual-fill-column-center-text t)
-     (visual-fill-column-mode 1))
-     (use-package visual-fill-column
-     :hook (org-mode . amt/org-mode-visual-fill))
-     (use-package org-bullets
-     :hook (org-mode . org-bullets-mode)
-     :custom
-     (org-bullets-bullet-list '("◉" "○" "●" "○" "●" "○" "●")))
-     (use-package olivetti)
-     (use-package focus))
+    ;; Define directories
+    (setq org-directory "~/Documents/org-roam")
+    (setq org-default-notes-file (expand-file-name "inbox.org" org-directory))
 
+    ;; Save Org buffers after refiling
+    (advice-add 'org-refile :after 'org-save-all-org-buffers))
 
+  (defun amt/org-mode-setup ()
+    "Setup function for org mode."
+    (org-indent-mode)
+    (variable-pitch-mode 1)
+    (visual-line-mode 1)
+    (amt/enable-visual-fill))
 
+  ;; Org bullets for prettier headings
+  (use-package org-bullets
+    :hook (org-mode . org-bullets-mode)
+    :custom
+    (org-bullets-bullet-list '("◉" "○" "●" "○" "●" "○" "●")))
+
+  ;; Org appear for toggling emphasis markers
   (use-package org-appear
+    :hook (org-mode . org-appear-mode)
+    :config
+    (setq org-appear-autoemphasis t
+          org-appear-autolinks t
+          org-appear-autosubmarkers t))
+
+  ;; Modern styling for Org Mode
+  (use-package org-modern
     :hook
-    (org-mode . org-appear-mode))
+    (org-mode . org-modern-mode)
+    (org-agenda-finalize . org-modern-agenda)
+    :config
+    (setq org-modern-star '("◉" "○" "●" "○" "●" "○" "●")
+          org-modern-table-vertical 1
+          org-modern-table-horizontal 0.2
+          org-modern-list '((43 . "•") (45 . "–") (42 . "•"))
+          org-modern-block-fringe nil
+          org-modern-keyword "‣ "
+          org-modern-tag nil
+          org-modern-priority nil
+          org-modern-todo nil
+          org-modern-timestamp t
+          org-modern-statistics nil))
+#+end_src
 
-  
+** Org Babel
+:PROPERTIES:
+:CUSTOM_ID: org-babel
+:END:
 
+Configure Org Babel for literate programming.
 
+#+begin_src emacs-lisp
+  ;; Org Babel languages
+  (with-eval-after-load 'org
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (python . t)
+       (shell . t)
+       (lisp . t)
+       (js . t))))
 
+  ;; Auto-tangle org files when saved
+  (use-package org-auto-tangle
+    :defer t
+    :hook (org-mode . org-auto-tangle-mode)
+    :config
+    (setq org-auto-tangle-default nil))
+
+  ;; Structure templates
+  (with-eval-after-load 'org
+    (require 'org-tempo)
+    (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
+    (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+    (add-to-list 'org-structure-template-alist '("py" . "src python"))
+    (add-to-list 'org-structure-template-alist '("js" . "src js")))
+
+  ;; Execute path from shell (for macOS)
+  (when (memq window-system '(mac ns x))
+    (use-package exec-path-from-shell
+      :config
+      (exec-path-from-shell-initialize)))
 #+end_src
 
 ** Org Roam
+:PROPERTIES:
+:CUSTOM_ID: org-roam
+:END:
+
+Configure Org Roam for personal knowledge management.
 
 #+begin_src emacs-lisp
+;; Org Roam configuration
+(use-package org-roam
+  :ensure t
+  :custom
+  (org-roam-directory (file-truename "~/Documents/org-roam"))
+  (org-roam-completion-everywhere t)
+  (org-roam-capture-templates
+   '(("d" "default" plain "%?"
+      :if-new (file+head "${slug}.org" "#+title: ${title}\n#+date: %U\n#+filetags: :project:\n\n* Project Overview\n\n* Tasks [/]\n\n* Resources\n\n* Notes\n"
+                         :immediate-finish t
+                         :unnarrowed t)))
 
-    (use-package org-roam
-      :ensure t
-      :custom
-      (org-roam-directory "~/Documents/org-roam")
-      (org-roam-capture-templates
-      '(("d" "default" plain
-      "%?"
-      :if-new (file+head "${slug}.org" "#+title: ${title}\n")
-      :unnarrowed t)))
+   :config
+   (org-roam-db-autosync-mode)))
 
-      :bind (("C-c n l" . org-roam-buffer-toggle)
-      ("C-c n f" . org-roam-node-find)
-      ("C-c t a" . org-roam-tag-add)
-      ("C-c C-c" . org-roam-capture)
-      ("C-c n i" . org-roam-node-insert))
-     
-      :config
-      (setq org-roam-completion-system 'ido)
-      (org-roam-setup))
+;; Display format for org-roam nodes
+(setq org-roam-node-display-template
+      (concat "${title:*} "
+              (propertize "${tags:10}" 'face 'org-tag)))
 
-  (setq org-roam-node-display-template
-  	(concat "${title:*} "
-  		(propertize "${tags:10}" 'face 'org-tag)))
+;; Org-roam buffer display settings
+(add-to-list 'display-buffer-alist
+             '("\\*org-roam\\*"
+               (display-buffer-in-side-window)
+               (side . right)
+               (slot . 0)
+               (window-width . 0.33)
+               (window-parameters . ((no-other-window . t)
+                                     (no-delete-other-windows . t)))))
 
-  (setq org-roam-mode-sections
-      (list #'org-roam-backlinks-section
-  	    #'org-roam-reflinks-section
-  	    ))
+;; Org-roam UI
+(use-package org-roam-ui
+  :after org-roam
+  :config
+  (setq org-roam-ui-sync-theme t
+        org-roam-ui-follow t
+        org-roam-ui-update-on-save t
+        org-roam-ui-open-on-start nil))
 
-  (add-to-list 'display-buffer-alist
-  	     '("\\*org-roam\\*"
-  	       (display-buffer-in-side-window)
-  	       (side . right)
-  	       (slot . 0)
-  	       (window-width . 0.33)
-  	       (window-parameters . ((no-other-window . t)
-  				     (no-delete-other-windows . t)))))
-
-  (setq org-roam-completion-everywhere t)
-#+end_src
-
+;; Deft for quick note access
+(use-package deft
+  :after org
+  :bind ("<f8>" . deft)
+  :custom
+  (deft-recursive t)
+  (deft-use-filter-string-for-filename t)
+  (deft-default-extension "org")
+  (deft-directory org-roam-directory)
+  (deft-use-filename-as-title t))
+           #+end_src
+           
 ** Org Agenda
+:PROPERTIES:
+:CUSTOM_ID: org-agenda
+:END:
+
+Configure Org Agenda for task management.
+
 #+begin_src emacs-lisp
-(define-key global-map (kbd "C-c a") 'org-agenda)
-      (setq org-directory "~/Documents/org-roam")
-      (setq org-agenda-files '("/home/mamad/Documents/org-roam"))
-      (setq org-agenda-start-with-log-mode t)
-      (setq org-log-done 'time)
-      (setq org-log-into-drawer t)
+;; Org agenda configuration
+(with-eval-after-load 'org
+  ;; Agenda key binding
+  (define-key global-map (kbd "C-c a") 'org-agenda)
 
-        (setq org-todo-keywords
-          '((sequence "TODO(t)" "NEXT(n)" "|" "HALT(h)"  "|" "DONE(d!)")))
+  ;; Set agenda files
+  (setq org-agenda-files (list org-directory))
 
-      (setq org-todo-keyword-faces
-          '(("TODO" . "yellow") 
-    ("NEXT" . "green")
-    ("DONE" . "red")
-            ("CANCELED" . (:foreground "blue" :weight bold))))
+  ;; Agenda view settings
+  (setq org-agenda-start-with-log-mode t)
+  (setq org-log-done 'time)
+  (setq org-log-into-drawer t)
 
+  ;; Todo keywords
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(p)" "|" "DONE(d!)" "CANCELED(c@)")))
+
+  ;; Todo keyword faces
+  (setq org-todo-keyword-faces
+        '(("TODO" . (:foreground "orange" :weight bold))
+          ("NEXT" . (:foreground "yellow" :weight bold))
+          ("IN-PROGRESS" . (:foreground "blue" :weight bold))
+          ("DONE" . (:foreground "green" :weight bold))
+          ("CANCELED" . (:foreground "red" :weight bold))))
+
+  ;; Capture templates
+  (setq org-capture-templates
+        '(("t" "Task" entry (file+headline org-default-notes-file "Tasks")
+           "* TODO %?\n  %U\n  %a\n")
+          ("n" "Note" entry (file+headline org-default-notes-file "Notes")
+           "* %? :NOTE:\n  %U\n  %a\n")
+          ("j" "Journal" entry (file+olp+datetree "~/Documents/org-roam/journal.org")
+           "* %?\nEntered on %U\n  %i\n  %a")
+          ("i" "Idea" entry (file+headline org-default-notes-file "Ideas")
+           "* %? :IDEA:\n  %U\n  %a\n")))
+
+  ;; Auto-update parent tasks
   (defun org-summary-todo (n-done n-not-done)
     "Switch entry to DONE when all subentries are done, to TODO otherwise."
-    (let (org-log-done org-todo-log-states)   ; turn off logging
+    (let (org-log-done org-log-states)   ;; turn off logging
       (org-todo (if (= n-not-done 0) "DONE" "TODO"))))
 
   (add-hook 'org-after-todo-statistics-hook #'org-summary-todo)
-#+end_src
 
-*** View
-#+begin_src emacs-lisp
-(setq org-agenda-custom-commands
-      '(("g" "Get Things Done (GTD)"
-         ((agenda ""
+  ;; Custom agenda views
+  (setq org-agenda-custom-commands
+        '(("d" "Dashboard"
+           ((agenda "" ((org-agenda-span 'day)
+                        (org-deadline-warning-days 7)))
+            (todo "NEXT"
+                  ((org-agenda-overriding-header "Next Tasks")))
+            (todo "IN-PROGRESS"
+                  ((org-agenda-overriding-header "In Progress"))))
+           ((org-agenda-start-with-log-mode t)))
+
+          ("n" "Next Tasks"
+           ((todo "NEXT"
+                  ((org-agenda-overriding-header "Next Tasks")))))
+
+          ("g" "GTD"
+           ((agenda ""
+                    ((org-agenda-skip-function
+                      '(org-agenda-skip-entry-if 'deadline))
+                     (org-deadline-warning-days 0)))
+            (todo "NEXT"
                   ((org-agenda-skip-function
                     '(org-agenda-skip-entry-if 'deadline))
-                   (org-deadline-warning-days 0)))
-          (todo "NEXT"
-                ((org-agenda-skip-function
-                  '(org-agenda-skip-entry-if 'deadline))
-                 (org-agenda-prefix-format "  %i %-12:c [%e] ")
-                 (org-agenda-overriding-header "\nTasks\n")))
-          (agenda nil
-                  ((org-agenda-entry-types '(:deadline))
-                   (org-agenda-format-date "")
-                   (org-deadline-warning-days 7)
-                   (org-agenda-skip-function
-                    '(org-agenda-skip-entry-if 'notregexp "\\* NEXT"))
-                   (org-agenda-overriding-header "\nDeadlines")))
-          (tags-todo "inbox"
-                     ((org-agenda-prefix-format "  %?-12t% s")
-                      (org-agenda-overriding-header "\nInbox\n")))
-          (tags "CLOSED>=\"<today>\""
-                ((org-agenda-overriding-header "\nCompleted today\n")))))))
+                   (org-agenda-prefix-format "  %i %-12:c [%e] ")
+                   (org-agenda-overriding-header "\nTasks\n")))
+            (agenda nil
+                    ((org-agenda-entry-types '(:deadline))
+                     (org-agenda-format-date "")
+                     (org-deadline-warning-days 7)
+                     (org-agenda-skip-function
+                      '(org-agenda-skip-entry-if 'notregexp "\\* NEXT"))
+                     (org-agenda-overriding-header "\nDeadlines")))
+            (tags-todo "inbox"
+                       ((org-agenda-prefix-format "  %?-12t% s")
+                        (org-agenda-overriding-header "\nInbox\n")))
+            (tags "CLOSED>=\"<today>\""
+                  ((org-agenda-overriding-header "\nCompleted today\n"))))))))
 #+end_src
 
 ** Org Presentation
-#+begin_src emacs-lisp
-;  (eval-after-load "org-present"
- ;   '(progn
-  ;     (add-hook 'org-present-mode-hook
-;		 (lambda ()
-;		   (org-present-big)
-;		   (org-display-inline-images)
-;		   (org-present-hide-cursor)
-;		   (org-present-read-only)))
- ;      (add-hook 'org-present-mode-quit-hook
-;		 (lambda ()
-;		   (org-present-small)
-;		   (org-remove-inline-images)
-;		   (org-present-show-cursor)
-;		   (org-present-read-write)))))
-#+end_src
-** Org Babel
-#+begin_src emacs-lisp
-  (when (memq window-system '(mac ns x))
-    (exec-path-from-shell-initialize)) 
+:PROPERTIES:
+:CUSTOM_ID: org-presentation
+:END:
 
+Configure Org mode for presentations and exporting.
 
-    (org-babel-do-load-languages
-     'org-babel-load-languages
-     '(
-       (python  . t)
-       (lisp    . t)
-       ))
+#+begin_src emacs-lisp
+;; Org Present for presentations
+(use-package org-present
+  :hook ((org-present-mode . (lambda ()
+                               (org-present-big)
+                               (org-display-inline-images)
+                               (org-present-hide-cursor)
+                               (org-present-read-only)
+                               (visual-line-mode 1)
+                               (visual-fill-column-mode 1)))
+         (org-present-mode-quit . (lambda ()
+                                    (org-present-small)
+                                    (org-remove-inline-images)
+                                    (org-present-show-cursor)
+                                    (org-present-read-write)
+                                    (visual-line-mode -1)
+                                    (visual-fill-column-mode -1)))))
+
+;; Org Export backend for Hugo
+(use-package ox-hugo
+  :after ox)
+
+;; Org Export backends
+(with-eval-after-load 'org
+  (require 'ox-md)
+  (require 'ox-beamer)
+  (require 'ox-latex))
 #+end_src
 
 * Development
-** LSP
+:PROPERTIES:
+:CUSTOM_ID: development
+:END:
+
+Configure Emacs for software development with IDE-like features.
+
+** Project Management
+:PROPERTIES:
+:CUSTOM_ID: project-management
+:END:
+
+Configure project management tools.
 
 #+begin_src emacs-lisp
-  ; (lsp-mode . lsp-enable-which-key-integration)
-;(lsp-enable-which-key-integration t)
-   (use-package lsp-mode
-     :commands (lsp lsp-deferred)
-     :hook (
-     (org-mode . lsp)
-     (python-mode . lsp)
-     (go-mode . lsp)
-     (rust-mode . lsp)
-     (lua-mode . lsp)
-     )
-     :init
-     (setq lsp-keymap-prefix "C-c l")
-     :config
-     )
+;; Projectile for project management
+(use-package projectile
+  :diminish projectile-mode
+  :config
+  (projectile-mode +1)
+  (setq projectile-completion-system 'ivy)
+  :custom
+  ((projectile-completion-system 'ivy)
+   (projectile-enable-caching t)
+   (projectile-sort-order 'recently-active)
+   (projectile-globally-ignored-file-suffixes '(".elc" ".pyc" ".o")))
+  :bind (:map projectile-mode-map
+              ("C-c p" . projectile-command-map)))
 
-   (use-package lsp-ui
-     :hook (lsp-mode . lsp-ui-mode)
-     :custom
-     (lsp-ui-doc-position 'bottom))
+;; Integration with counsel
+(use-package counsel-projectile
+  :after (counsel projectile)
+  :config (counsel-projectile-mode))
 
+;; Version control integration
+(use-package magit
+  :commands magit-status
+  :custom
+  (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
+
+;; Git gutter
+(use-package git-gutter
+  :hook (prog-mode . git-gutter-mode)
+  :config
+  (setq git-gutter:update-interval 0.02))
+
+;; Diff-hl as an alternative
+(use-package diff-hl
+  :config
+  (global-diff-hl-mode)
+  (add-hook 'dired-mode-hook 'diff-hl-dired-mode)
+  (add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh))
 #+end_src
 
-** Company
+** LSP and Completion
+:PROPERTIES:
+:CUSTOM_ID: lsp-and-completion
+:END:
+
+Configure Language Server Protocol for IDE features.
 
 #+begin_src emacs-lisp
+;; LSP Mode
+(use-package lsp-mode
+  :commands (lsp lsp-deferred)
+  :hook ((python-mode . lsp-deferred)
+         (go-mode . lsp-deferred)
+         (rust-mode . lsp-deferred)
+         (typescript-mode . lsp-deferred)
+         (js-mode . lsp-deferred)
+         (web-mode . lsp-deferred)
+         (lsp-mode . lsp-enable-which-key-integration))
+  :init
+  (setq lsp-keymap-prefix "C-c l")
+  :config
+  (setq lsp-headerline-breadcrumb-enable t)
+  (setq lsp-idle-delay 0.1)
+  (setq lsp-log-io nil)
+  (setq lsp-completion-enable t)
+  (setq lsp-enable-symbol-highlighting t)
+  (setq lsp-enable-on-type-formatting nil)
+  (setq lsp-signature-auto-activate t)
+  (setq lsp-signature-render-documentation t)
+  (setq lsp-modeline-code-actions-enable t)
+  (setq lsp-modeline-diagnostics-enable t)
+  (setq lsp-diagnostics-provider :flycheck)
+  (setq lsp-completion-provider :capf))
 
- (use-package company
-   :after lsp-mode
-   :hook (lsp-mode . company-mode)
-   :ensure t
-   :bind (:map company-active-map
-    ("<tab>" . company-complete-selection))
-    (:map lsp-mode-map
-    ("<tab>" . company-indent-or-complete-common))
-   :custom
-    (company-minimum-prefix-length 1)
-    (company-idle-delay 0.0))
+;; LSP UI enhancements
+(use-package lsp-ui
+  :hook (lsp-mode . lsp-ui-mode)
+  :config
+  (setq lsp-ui-doc-enable t
+        lsp-ui-doc-position 'bottom
+        lsp-ui-doc-alignment 'window
+        lsp-ui-doc-delay 0.2
+        lsp-ui-doc-show-with-cursor t
+        lsp-ui-doc-include-signature t
+        lsp-ui-sideline-enable t
+        lsp-ui-sideline-show-diagnostics t
+        lsp-ui-sideline-show-hover nil
+        lsp-ui-sideline-show-code-actions t
+        lsp-ui-sideline-update-mode 'line
+        lsp-ui-peek-enable t
+        lsp-ui-peek-always-show t))
 
- (use-package company-box
-   :hook (company-mode . company-box-mode))
+;; LSP Treemacs integration
+(use-package lsp-treemacs
+  :after (lsp-mode treemacs)
+  :config
+  (lsp-treemacs-sync-mode 1))
 
- (add-hook 'after-init-hook 'global-company-mode)
+;; Debug Adapter Protocol
+(use-package dap-mode
+  :after lsp-mode
+  :config
+  (dap-auto-configure-mode)
+  (require 'dap-python)
+  (require 'dap-go)
+  (require 'dap-node))
 
+;; Company for completion
+(use-package company
+  :after lsp-mode
+  :hook (prog-mode . company-mode)
+  :bind (:map company-active-map
+              ("<tab>" . company-complete-selection))
+  :custom
+  (company-minimum-prefix-length 1)
+  (company-idle-delay 0.0)
+  (company-selection-wrap-around t)
+  :config
+  (global-company-mode))
+
+;; Enhance company UI
+(use-package company-box
+  :hook (company-mode . company-box-mode))
 #+end_src
 
-** Projectile
+** Languages and Tools
+:PROPERTIES:
+:CUSTOM_ID: languages-and-tools
+:END:
+
+Configure support for specific programming languages.
 
 #+begin_src emacs-lisp
+;; Python support
+(use-package python-mode
+  :hook (python-mode . (lambda ()
+                         (setq tab-width 4)
+                         (setq python-indent-offset 4))))
 
- (use-package projectile
-   :ensure t
-   :init
-   (projectile-mode +1)
-   :bind (:map projectile-mode-map
-   ("s-p" . projectile-command-map)
-   ("C-c p" . projectile-command-map)))
+;; Enhanced Python development environment
+(use-package elpy
+  :defer t
+  :init
+  (elpy-enable))
 
- (use-package counsel-projectile
-   :after projectile
-   :config (counsel-projectile-mode))
+;; Go support
+(use-package go-mode
+  :hook (go-mode . (lambda ()
+                     (setq tab-width 4)
+                     (add-hook 'before-save-hook #'lsp-format-buffer t t)
+                     (add-hook 'before-save-hook #'lsp-organize-imports t t))))
 
+;; Rust support
+(use-package rust-mode
+  :hook (rust-mode . (lambda ()
+                       (setq indent-tabs-mode nil)
+                       (setq rust-format-on-save t))))
+
+;; Web development
+(use-package web-mode
+  :mode (("\\.html?\\'" . web-mode)
+         ("\\.css\\'" . web-mode)
+         ("\\.jsx?\\'" . web-mode)
+         ("\\.tsx?\\'" . web-mode)
+         ("\\.json\\'" . web-mode))
+  :config
+  (setq web-mode-markup-indent-offset 2)
+  (setq web-mode-css-indent-offset 2)
+  (setq web-mode-code-indent-offset 2)
+  (setq web-mode-enable-auto-pairing t)
+  (setq web-mode-enable-css-colorization t))
+
+;; JavaScript/TypeScript
+(use-package typescript-mode
+  :mode "\\.ts\\'"
+  :config
+  (setq typescript-indent-level 2))
+
+;; Common Lisp
+(use-package sly
+  :defer t
+  :config
+  (setq inferior-lisp-program "sbcl"))
+
+;; Markdown support
+(use-package markdown-mode
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . markdown-mode)
+         ("\\.markdown\\'" . markdown-mode))
+  :init (setq markdown-command "multimarkdown"))
+
+;; YAML support
+(use-package yaml-mode
+  :mode ("\\.ya?ml\\'" . yaml-mode))
+
+;; Docker support
+(use-package dockerfile-mode
+  :mode ("Dockerfile\\'" . dockerfile-mode))
 #+end_src
 
-** Languages
-*** Python
+** Terminals and Shells
+:PROPERTIES:
+:CUSTOM_ID: terminals-and-shells
+:END:
+
+Configure terminal emulators for Emacs.
 
 #+begin_src emacs-lisp
+;; VTerm - Better terminal emulation
+(use-package vterm
+  :commands vterm
+  :config
+  (setq vterm-max-scrollback 10000)
+  (setq vterm-buffer-name-string "vterm: %s"))
 
- (use-package python-mode)
+;; Multi VTerm - Manage multiple vterm buffers
+(use-package multi-vterm
+  :after vterm
+  :bind
+  (("C-c t" . multi-vterm)
+   ("C-c T" . multi-vterm-project)))
 
- (use-package elpy
-   :ensure t
-   :init
-   (elpy-enable))
+;; Improved Eshell
+(defun amt/configure-eshell ()
+  "Configure Eshell."
+  (add-hook 'eshell-pre-command-hook 'eshell-save-some-history)
+  (add-to-list 'eshell-output-filter-functions 'eshell-truncate-buffer)
+  (setq eshell-history-size 10000
+        eshell-buffer-maximum-lines 10000
+        eshell-hist-ignoredups t
+        eshell-scroll-to-bottom-on-input t))
 
+(use-package eshell
+  :hook (eshell-first-time-mode . amt/configure-eshell)
+  :config
+  (with-eval-after-load 'esh-opt
+    (setq eshell-destroy-buffer-when-process-dies t)
+    (setq eshell-visual-commands '("htop" "zsh" "vim" "nvim"))))
 #+end_src
 
 * Utilities
-** Which Key
+:PROPERTIES:
+:CUSTOM_ID: utilities
+:END:
+
+Add various utility packages to enhance productivity.
+
+** File Navigation
+:PROPERTIES:
+:CUSTOM_ID: file-navigation
+:END:
+
+Configure tools for efficient file navigation.
 
 #+begin_src emacs-lisp
+  ;; Treemacs file explorer
+  (use-package treemacs
+    :defer t
+    :init
+    (with-eval-after-load 'winum
+      (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+    :config
+    (setq treemacs-collapse-dirs 3
+          treemacs-deferred-git-apply-delay 0.5
+          treemacs-display-in-side-window t
+          treemacs-file-event-delay 5000
+          treemacs-file-follow-delay 0.2
+          treemacs-git-command-pipe ""
+          treemacs-goto-tag-strategy 'refetch-index
+          treemacs-indentation 2
+          treemacs-indentation-string " "
+          treemacs-is-never-other-window nil
+          treemacs-max-git-entries 5000
+          treemacs-no-png-images nil
+          treemacs-project-follow-cleanup nil
+          treemacs-persist-file (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+          treemacs-recenter-distance 0.1
+          treemacs-recenter-after-file-follow nil
+          treemacs-recenter-after-tag-follow nil
+          treemacs-recenter-after-project-jump 'always
+          treemacs-recenter-after-project-expand 'on-distance
+          treemacs-show-cursor nil
+          treemacs-show-hidden-files t
+          treemacs-silent-filewatch nil
+          treemacs-silent-refresh nil
+          treemacs-sorting 'alphabetic-asc
+          treemacs-space-between-root-nodes t
+          treemacs-tag-follow-cleanup t
+          treemacs-tag-follow-delay 1.5
+          treemacs-width 35)
 
- (use-package which-key
-   :defer 0
-   :diminish which-key-mode
-   :config
-     (which-key-mode)
-     (setq which-key-idle-delay 1))
+    (treemacs-follow-mode t)
+    (treemacs-filewatch-mode t)
+    (treemacs-fringe-indicator-mode t)
+    :bind
+    (:map global-map
+          ("M-0"       . treemacs-select-window)
+          ("C-x t 1"   . treemacs-delete-other-windows)
+          ("C-x t t"   . treemacs)
+          ("C-x t B"   . treemacs-bookmark)
+          ("C-x t C-t" . treemacs-find-file)
+          ("C-x t M-t" . treemacs-find-tag)))
 
+  ;; Treemacs integration with projectile
+  (use-package treemacs-projectile
+    :after (treemacs projectile))
+
+  ;; Treemacs with icons
+  (use-package treemacs-icons-dired
+    :after (treemacs dired)
+    :config (treemacs-icons-dired-mode))
+
+  ;; Treemacs with magit
+  (use-package treemacs-magit
+    :after (treemacs magit))
+
+  ;; Dired enhancements
+  (use-package dired
+    :ensure nil
+    :commands (dired dired-jump)
+    :bind (("C-x C-j" . dired-jump))
+    :config
+    (setq dired-listing-switches "-agho --group-directories-first")
+    (setq dired-dwim-target t))
+
+  ;; All the icons for dired
+  (use-package all-the-icons-dired
+    :hook (dired-mode . all-the-icons-dired-mode))
 #+end_src
 
-** All The Icons
+** PDF and Document Support
+:PROPERTIES:
+:CUSTOM_ID: pdf-and-document-support
+:END:
+
+Configure PDF and document viewing capabilities.
 
 #+begin_src emacs-lisp
+  ;; PDF Tools
+  (use-package pdf-tools
+    :defer t
+    :config
+    (pdf-tools-install)
+    :custom
+    (pdf-view-display-size 'fit-page)
+    :hook
+    (pdf-view-mode . (lambda () (display-line-numbers-mode -1))))
 
- (use-package all-the-icons-ivy-rich
-   :init
-   (all-the-icons-ivy-rich-mode 1))
-
+  ;; DocView improvements
+  (setq doc-view-continuous t)
+  (setq doc-view-resolution 300)
 #+end_src
 
+** Spelling and Grammar
+:PROPERTIES:
+:CUSTOM_ID: spelling-and-grammar
+:END:
 
-** Markdown Mode
+Configure spelling and grammar checking tools.
+
 #+begin_src emacs-lisp
-  (use-package markdown-mode
-    :ensure t
-    :mode (("README\\.md\\'" . gfm-mode)
-	   ("\\.md\\'" . markdown-mode)
-	   ("\\.markdown\\'" . markdown-mode))
-    :init (setq markdown-command "multimarkdown"))
+  ;; Flyspell for spell checking
+;;  (use-package flyspell
+;;    :hook
+;;    ((text-mode . flyspell-mode)
+;;     (prog-mode . flyspell-prog-mode))
+;;    :config
+;;    (setq ispell-program-name "aspell"
+;;          ispell-extra-args '("--sug-mode=ultra")))
+
+  ;; Flyspell correct interface
+  (use-package flyspell-correct
+    :after flyspell
+    :bind (:map flyspell-mode-map
+                ("C-;" . flyspell-correct-wrapper)))
+
+  ;; Grammar checking with languagetool
+  (use-package langtool
+    :defer t
+    :config
+    (setq langtool-language-tool-jar "/path/to/languagetool-commandline.jar"
+          langtool-default-language "en-US")
+    :bind (("C-c l c" . langtool-check)
+           ("C-c l d" . langtool-check-done)
+           ("C-c l s" . langtool-switch-default-language)
+           ("C-c l m" . langtool-show-message-at-point)
+           ("C-c l x" . langtool-correct-buffer)))
 #+end_src
 
-** Deft
+* Extras
+:PROPERTIES:
+:CUSTOM_ID: extras
+:END:
+
+Additional features and personal customizations.
+
+** Personal Functions
+:PROPERTIES:
+:CUSTOM_ID: personal-functions
+:END:
+
+Define personal utility functions.
+
 #+begin_src emacs-lisp
-  (use-package deft
-    :bind ("<f8>" . deft)
-    :commands (deft)
-    :config (setq deft-directory "~/Documents/org-roam"
-                  deft-extensions '("org")
-  	deft-use-filename-as-title t	))
+  ;; Open init.org file
+  (defun amt/open-init-file ()
+    "Open the init file."
+    (interactive)
+    (find-file (expand-file-name "emacs.org" user-emacs-directory)))
+
+  ;; Bind to key
+  (global-set-key (kbd "C-c i") 'amt/open-init-file)
+
+  ;; Reload init file
+  (defun amt/reload-init-file ()
+    "Reload the init file."
+    (interactive)
+    (load-file (expand-file-name "init.el" user-emacs-directory)))
+
+  ;; Bind to key
+  (global-set-key (kbd "C-c r") 'amt/reload-init-file)
+
+  ;; Toggle fullscreen
+  (defun amt/toggle-maximize-buffer ()
+    "Maximize buffer."
+    (interactive)
+    (if (= 1 (length (window-list)))
+        (jump-to-register '_)
+      (progn
+        (window-configuration-to-register '_)
+        (delete-other-windows))))
+
+  ;; Bind to key
+  (global-set-key (kbd "C-c m") 'amt/toggle-maximize-buffer)
+
+  ;; Toggle dark/light theme
+  (defun amt/toggle-theme ()
+    "Toggle between light and dark themes."
+    (interactive)
+    (if (eq (car custom-enabled-themes) 'modus-vivendi)
+        (progn
+          (disable-theme 'modus-vivendi)
+          (load-theme 'modus-operandi t))
+      (progn
+        (disable-theme 'modus-operandi)
+        (load-theme 'modus-vivendi t))))
+
+  ;; Bind to key
+  (global-set-key (kbd "C-c t") 'amt/toggle-theme)
+#+end_src
+
+** Miscellaneous Settings
+:PROPERTIES:
+:CUSTOM_ID: miscellaneous-settings
+:END:
+
+Various miscellaneous enhancements.
+
+#+begin_src emacs-lisp
+  ;; Save recent files
+  (use-package recentf
+    :config
+    (setq recentf-save-file (expand-file-name "recentf" user-emacs-directory)
+          recentf-max-saved-items 50
+          recentf-max-menu-items 15
+          recentf-auto-cleanup 'never)
+    (recentf-mode +1))
+
+  ;; Save history
+  (use-package savehist
+    :config
+    (setq history-length 25)
+    (savehist-mode 1))
+
+  ;; Save place in files
+  (use-package saveplace
+    :config
+    (save-place-mode 1))
+
+  ;; Crux - A Collection of Ridiculously Useful eXtensions
+  (use-package crux
+    :bind
+    (("C-k" . crux-smart-kill-line)
+     ("C-c f" . crux-recentf-find-file)
+     ("C-a" . crux-move-beginning-of-line)
+     ("C-o" . crux-smart-open-line-above)
+     ("M-o" . crux-smart-open-line)
+     ("C-c d" . crux-duplicate-current-line-or-region)))
+
+  ;; Automatically reload files when they change on disk
+  (global-auto-revert-mode 1)
+  (setq auto-revert-verbose nil)
+
+  ;; Highlight matching parentheses
+  (show-paren-mode 1)
+
+  ;; Display time in the mode line
+  (display-time-mode 1)
+
+  ;; Display battery status in the mode line
+  (display-battery-mode 1)
+#+end_src
+
+* Final Setup
+:PROPERTIES:
+:CUSTOM_ID: final-setup
+:END:
+
+Finalize the configuration and optimize startup.
+
+#+begin_src emacs-lisp
+  ;; Empty scratch buffer message
+  (setq initial-scratch-message "")
+
+  ;; Garbage collection settings
+  (setq gc-cons-threshold (* 2 1000 1000))
+
+  ;; Faster startup
+  (setq frame-inhibit-implied-resize t)
+
+  ;; Show startup time
+  (defun amt/display-startup-time ()
+    (message "Emacs loaded in %s with %d garbage collections."
+             (format "%.2f seconds"
+                     (float-time
+                      (time-subtract after-init-time before-init-time)))
+             gcs-done))
+
+;;  (add-hook 'emacs-startup-hook #'amt/display-startup-time)
+
+  ;; Final message
+  (message "Configuration loaded successfully!")
 #+end_src
